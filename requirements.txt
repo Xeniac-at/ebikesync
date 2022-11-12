@@ -1,0 +1,2 @@
+selenium~=4.5
+xdg~=5.0
