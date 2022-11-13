@@ -10,6 +10,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
 from xdg import xdg_config_home
+from xvfbwrapper import Xvfb
 
 HTML_FETCH_TIMEOUT: int = 5
 SELENIUM_DRIVER = None
@@ -187,33 +188,34 @@ if __name__ == "__main__":
     CONFIG: ConfigParser = ConfigParser()
     RETURN_CODE: int = 0
     logging.basicConfig(level=logging.INFO)
-    try:
-        CONFIG = get_config()
-        logging.basicConfig(level=getattr(logging, CONFIG["default"]["loglevel"].upper()))
-    except Exception as error_message:
-        error(str(error_message))
-        quit(-1)
-    assert isinstance(SELENIUM_DRIVER, WebDriver)
-    try:
-        ebike_connect = eBikeConnect(
-            SELENIUM_DRIVER,
-            CONFIG["bosch"]["username"],
-            CONFIG["bosch"]["password"])
-        ebike_connect.get_data()
+    with Xvfb() as xvfb:
+        try:
+            CONFIG = get_config()
+            logging.basicConfig(level=getattr(logging, CONFIG["default"]["loglevel"].upper()))
+        except Exception as error_message:
+            error(str(error_message))
+            quit(-1)
+        assert isinstance(SELENIUM_DRIVER, WebDriver)
+        try:
+            ebike_connect = eBikeConnect(
+                SELENIUM_DRIVER,
+                CONFIG["bosch"]["username"],
+                CONFIG["bosch"]["password"])
+            ebike_connect.get_data()
 
-        radelt_at = RadeltAt(
-            SELENIUM_DRIVER,
-            CONFIG["radelt"]["username"],
-            CONFIG["radelt"]["password"]
-        )
-        radelt_at.get_data(total_altitude=ebike_connect.altitude)
-        radelt_at.submit_data(
-            distance=ebike_connect.distance,
-            submit=CONFIG.getboolean("radelt", "submit")
-        )
-    except Exception as error_message:
-        error(str(error_message))
-        RETURN_CODE = -2
-    finally:
-        SELENIUM_DRIVER.quit()
-        quit(RETURN_CODE)
+            radelt_at = RadeltAt(
+                SELENIUM_DRIVER,
+                CONFIG["radelt"]["username"],
+                CONFIG["radelt"]["password"]
+            )
+            radelt_at.get_data(total_altitude=ebike_connect.altitude)
+            radelt_at.submit_data(
+                distance=ebike_connect.distance,
+                submit=CONFIG.getboolean("radelt", "submit")
+            )
+        except Exception as error_message:
+            error(str(error_message))
+            RETURN_CODE = -2
+        finally:
+            SELENIUM_DRIVER.quit()
+    quit(RETURN_CODE)
