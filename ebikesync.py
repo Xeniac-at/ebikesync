@@ -10,7 +10,14 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
 from xdg import xdg_config_home
-from xvfbwrapper import Xvfb
+
+try:
+    from xvfbwrapper import Xvfb
+
+    XVFBWRAPPER = True
+except ModuleNotFoundError:
+    XVFBWRAPPER = False
+    pass
 
 HTML_FETCH_TIMEOUT: int = 5
 SELENIUM_DRIVER = None
@@ -176,37 +183,41 @@ def get_config() -> ConfigParser:
     try:
         config.read(config_file)
         HTML_FETCH_TIMEOUT = config["default"]["html_fetch_timeout"]
-        debug(f'Loading Selenium Driver {config["default"]["selenium_driver"]} ...')
-        SELENIUM_DRIVER = getattr(webdriver, config.get("default", "selenium_driver"))()
+        logging.basicConfig(level=getattr(logging, config.get("default", "loglevel").upper(), logging.INFO))
     except Exception as error_msg:
         error(f"Error loading config from {config_file}: {error_msg}")
         raise error_msg
     return config
 
 
-if __name__ == "__main__":
-    CONFIG: ConfigParser = ConfigParser()
-    RETURN_CODE: int = 0
-    logging.basicConfig(level=logging.INFO)
-    with Xvfb() as xvfb:
-        try:
-            CONFIG = get_config()
-            logging.basicConfig(level=getattr(logging, CONFIG["default"]["loglevel"].upper()))
-        except Exception as error_message:
-            error(str(error_message))
-            quit(-1)
-        assert isinstance(SELENIUM_DRIVER, WebDriver)
+def run(config: ConfigParser) -> int:
+    """
+
+    :param config:
+    :return:
+    """
+    try:
+        selenium_driver = getattr(webdriver, config.get("default", "selenium_driver", fallback="Chrome"))()
+    except Exception as error_message:
+        error("Error loading Selenium Driver!", str(error_message))
+        return -2
+
+    with selenium_driver:
         try:
             ebike_connect = eBikeConnect(
-                SELENIUM_DRIVER,
-                CONFIG["bosch"]["username"],
-                CONFIG["bosch"]["password"])
+                selenium_driver,
+                config["bosch"]["username"],
+                config["bosch"]["password"])
             ebike_connect.get_data()
+        except Exception as error_message:
+            error("Error accessing ebike-connect.com!", str(error_message))
+            return -3
 
+        try:
             radelt_at = RadeltAt(
-                SELENIUM_DRIVER,
-                CONFIG["radelt"]["username"],
-                CONFIG["radelt"]["password"]
+                selenium_driver,
+                config["radelt"]["username"],
+                config["radelt"]["password"]
             )
             radelt_at.get_data(total_altitude=ebike_connect.altitude)
             radelt_at.submit_data(
@@ -214,8 +225,23 @@ if __name__ == "__main__":
                 submit=CONFIG.getboolean("radelt", "submit")
             )
         except Exception as error_message:
-            error(str(error_message))
-            RETURN_CODE = -2
-        finally:
-            SELENIUM_DRIVER.quit()
+            error("Error accessing radelt.at!", str(error_message))
+            return -4
+    return 0
+
+
+if __name__ == "__main__":
+    CONFIG: ConfigParser = ConfigParser()
+    RETURN_CODE: int = 0
+    logging.basicConfig(level=logging.INFO)
+    try:
+        CONFIG = get_config()
+    except Exception as error_message:
+        error(str(error_message))
+        quit(-1)
+    if XVFBWRAPPER and CONFIG.getboolean("default", "xvfbwrapper", fallback=False):
+        with Xvfb() as xvfb:
+            RETURN_CODE = run(config=CONFIG)
+    else:
+        RETURN_CODE = run(config=CONFIG)
     quit(RETURN_CODE)
