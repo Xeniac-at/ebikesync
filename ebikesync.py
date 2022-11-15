@@ -85,19 +85,21 @@ class SeleniumPageWithLogin:
 
 class eBikeConnect(SeleniumPageWithLogin):
     """
-    Bosch ebike-connect.com to grab the total distance and total altitude from your E-Bike
+    Bosch ebike-connect.com to grab the total total_distance and total altitude from your E-Bike
     """
     distance: int = 0
     altitude: int = 0
-    login_url: str = "https://www.ebike-connect.com/login?state=%2Fdashboard"
+    login_url: str = "https://www.ebike-connect.com/login?lang=de-at"
+    fetch_url: str = "https://www.ebike-connect.com/dashboard"
     cookie_button_selector: str = "#cookieConsent-button"
     email_field_selector: str = "#login__email"
     password_field_selector: str = "#login__password"
-    distance_selector: str = '#statistic-box-distance span.font-style-h2'
+    distance_selector: str = '#statistic-box-total_distance span.font-style-h2'
     altitude_selector: str = '#statistic-box-elevation span.font-style-h2'
 
-    def get_data(self):
-        debug(f"fetching data from {self.login_url}")
+    def fetch_data(self):
+        debug(f"fetching data from {self.fetch_url}")
+        self.driver.get(self.fetch_url)
         distance = self._wait_for(self.distance_selector)
         altitude = self._wait_for(self.altitude_selector)
         self.distance = int(distance.text) or 0
@@ -108,55 +110,61 @@ class eBikeConnect(SeleniumPageWithLogin):
 
 class RadeltAt(SeleniumPageWithLogin):
     """
-    radelt.at Portal to fill in the total distance and total_altitude from the Bosch E-Bike Site.
+    radelt.at Portal to fill in the total total_distance and total_altitude from the Bosch E-Bike Site.
     """
     additional_altitude: int = 0
     altitude_input_selector: str = 'input[name="altitude"]'
     date_input_selector: str = 'input[name="userdate"]'
     description_input_selector: str = 'input[name="description"]'
-    distance: int = 0
+    total_distance: int = 0
     distance_input_selector: str = 'input[name="km_end"]'
     distance_selector: str = '#km span.amount'
     email_field_selector: str = "#email"
-    form_url: str = "https://burgenland.radelt.at/dashboard/rides/create/245325"
+    fetch_url: str = "https://burgenland.radelt.at/dashboard/statistics"
+    submit_url: str = "https://burgenland.radelt.at/dashboard/rides/create/245325"
     login_url: str = "https://burgenland.radelt.at/dashboard/login"
     password_field_selector: str = "#password"
     timeline_entries_selector: str = 'div.timeline__entry__col.timeline__entry__col--bike-text p'
+    personal_stats_selector: str = "div#pers_32341995 table:first-of-type tr"
     total_altitude: int = 0
 
-    def get_data(self, total_altitude: int):
+    def fetch_data(self, total_altitude: int):
         """
-        fetch the previous total total_altitude and subtract it from the current total.
-        :return: the difference
+        fetch the previous total distance and altitude calculate additional altitude.
+        :param total_altitude:  new total altitude for the ebike
         """
-        debug(f"fetching data from {self.form_url}")
-        altitude_pattern = re.compile(r"^Gesamthöhe: ([0-9 ]+)m$", re.IGNORECASE)
-        previous_altitude = 0
-        self.total_altitude = total_altitude
+        debug(f"fetching data from {self.fetch_url}")
+        altitude_pattern = re.compile(r"^Höhenmeter([0-9. ]+)m$", re.IGNORECASE)
+        distance_pattern = re.compile(r"^gefahrene Kilometer([0-9. ]+)km$", re.IGNORECASE)
 
-        self.driver.get(self.form_url)
-        self.distance = int(self._wait_for(self.distance_selector).text.replace(".", "")) or 0
-        info(f"[Radelt] Distance: {self.distance} km")
-
+        self.driver.get(self.fetch_url)
         # iterate over every timeline to find the highest total_altitude
-        for element in self.driver.find_elements(By.CSS_SELECTOR, self.timeline_entries_selector):
-            match = altitude_pattern.match(element.text)
-            if match:
-                previous_altitude = max(int(match.group(1)), previous_altitude)
-        self.additional_altitude = total_altitude - previous_altitude
-
-        info(f"[Radelt] Altitude {previous_altitude} m (additional {self.additional_altitude} m)")
+        for element in self.driver.find_elements(By.CSS_SELECTOR, self.personal_stats_selector):
+            match_altitude = altitude_pattern.match(element.text)
+            if match_altitude:
+                self.total_altitude = int(match_altitude.group(1).replace(".", ""))
+                debug(f"Altitude found {match_altitude.string}: {self.total_altitude}")
+                continue
+            match_distance = distance_pattern.match(element.text)
+            if match_distance:
+                self.total_distance = int(match_distance.group(1).replace(".", ""))
+                debug(f"Distance found {match_distance.string}: {self.total_distance}")
+                continue
+        self.additional_altitude = total_altitude - self.total_altitude
+        info(f"[Radelt] Distance: {self.total_distance} km")
+        info(f"[Radelt] Altitude {self.total_altitude} m")
+        info(f"[Radelt] Additional altitude {self.additional_altitude} m")
         return self.additional_altitude
 
-    def submit_data(self, distance: int, submit: bool = True):
+    def submit_data(self, total_distance: int, submit: bool = True):
         """
-        Submit the total distance and the new additional total_altitude to radelt.at
-        :param distance: total Distance 
+        Submit the total total_distance and the new additional total_altitude to radelt.at
+        :param total_distance: total Distance
         :param submit: submit the Form?
         :return: 
         """
-        debug(f"submit data using {self.form_url}")
-        self.driver.get(self.form_url)
+        debug(f"submit data using {self.submit_url}")
+        self.driver.get(self.submit_url)
         description = f"Gesamthöhe: {self.total_altitude} m"
         distance_field = self._fill(self.distance_input_selector, str(distance))
 
@@ -164,8 +172,8 @@ class RadeltAt(SeleniumPageWithLogin):
             self._fill(self.description_input_selector, description)
             self._fill(self.altitude_input_selector, str(self.additional_altitude))
 
-        if not distance > self.distance:
-            warning("No changes in distance, won't submit the form...")
+        if total_distance <= self.total_distance:
+            warning("No changes in total_distance, won't submit the form...")
         elif not submit:
             warning("Submit ist set to False, won't submit the form...")
         else:
@@ -208,20 +216,19 @@ def run(config: ConfigParser) -> int:
                 selenium_driver,
                 config["bosch"]["username"],
                 config["bosch"]["password"])
-            ebike_connect.get_data()
+            ebike_connect.fetch_data()
         except Exception as error_message:
             error("Error accessing ebike-connect.com!", str(error_message))
             return -3
-
         try:
             radelt_at = RadeltAt(
                 selenium_driver,
                 config["radelt"]["username"],
                 config["radelt"]["password"]
             )
-            radelt_at.get_data(total_altitude=ebike_connect.altitude)
+            radelt_at.fetch_data(total_altitude=ebike_connect.altitude)
             radelt_at.submit_data(
-                distance=ebike_connect.distance,
+                total_distance=ebike_connect.total_distance,
                 submit=CONFIG.getboolean("radelt", "submit")
             )
         except Exception as error_message:
@@ -244,4 +251,6 @@ if __name__ == "__main__":
             RETURN_CODE = run(config=CONFIG)
     else:
         RETURN_CODE = run(config=CONFIG)
+    from time import sleep
+    sleep(10)
     quit(RETURN_CODE)
