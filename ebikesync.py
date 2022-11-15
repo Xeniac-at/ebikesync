@@ -1,7 +1,7 @@
 import logging
 import re
 from configparser import ConfigParser
-from logging import debug, info, warning, error
+from logging import debug, info, warning, error, exception
 
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -87,25 +87,24 @@ class eBikeConnect(SeleniumPageWithLogin):
     """
     Bosch ebike-connect.com to grab the total total_distance and total altitude from your E-Bike
     """
-    distance: int = 0
-    altitude: int = 0
+    total_distance: int = 0
+    total_altitude: int = 0
     login_url: str = "https://www.ebike-connect.com/login?lang=de-at"
     fetch_url: str = "https://www.ebike-connect.com/dashboard"
     cookie_button_selector: str = "#cookieConsent-button"
     email_field_selector: str = "#login__email"
     password_field_selector: str = "#login__password"
-    distance_selector: str = '#statistic-box-total_distance span.font-style-h2'
+    distance_selector: str = '#statistic-box-distance span.font-style-h2'
     altitude_selector: str = '#statistic-box-elevation span.font-style-h2'
 
     def fetch_data(self):
         debug(f"fetching data from {self.fetch_url}")
-        self.driver.get(self.fetch_url)
         distance = self._wait_for(self.distance_selector)
         altitude = self._wait_for(self.altitude_selector)
-        self.distance = int(distance.text) or 0
-        info(f"[BOSCH] Distance: {self.distance} km")
-        self.altitude = int(altitude.text) or 0
-        info(f"[BOSCH] Altitude: {self.altitude} m")
+        self.total_distance = int(distance.text) or 0
+        info(f"[BOSCH] Distance: {self.total_distance} km")
+        self.total_altitude = int(altitude.text) or 0
+        info(f"[BOSCH] Altitude: {self.total_altitude} m")
 
 
 class RadeltAt(SeleniumPageWithLogin):
@@ -165,11 +164,10 @@ class RadeltAt(SeleniumPageWithLogin):
         """
         debug(f"submit data using {self.submit_url}")
         self.driver.get(self.submit_url)
-        description = f"Gesamthöhe: {self.total_altitude} m"
-        distance_field = self._fill(self.distance_input_selector, str(distance))
+        distance_field = self._fill(self.distance_input_selector, str(total_distance))
 
         if self.total_altitude:
-            self._fill(self.description_input_selector, description)
+            self._fill(self.description_input_selector, f"Gesamthöhe: {self.total_altitude} m")
             self._fill(self.altitude_input_selector, str(self.additional_altitude))
 
         if total_distance <= self.total_distance:
@@ -192,9 +190,8 @@ def get_config() -> ConfigParser:
         config.read(config_file)
         HTML_FETCH_TIMEOUT = config["default"]["html_fetch_timeout"]
         logging.basicConfig(level=getattr(logging, config.get("default", "loglevel").upper(), logging.INFO))
-    except Exception as error_msg:
-        error(f"Error loading config from {config_file}: {error_msg}")
-        raise error_msg
+    except Exception:
+        exception(f"Error loading config from {config_file}")
     return config
 
 
@@ -206,8 +203,8 @@ def run(config: ConfigParser) -> int:
     """
     try:
         selenium_driver = getattr(webdriver, config.get("default", "selenium_driver", fallback="Chrome"))()
-    except Exception as error_message:
-        error("Error loading Selenium Driver!", str(error_message))
+    except Exception:
+        exception("Error loading Selenium Driver!")
         return -2
 
     with selenium_driver:
@@ -217,8 +214,9 @@ def run(config: ConfigParser) -> int:
                 config["bosch"]["username"],
                 config["bosch"]["password"])
             ebike_connect.fetch_data()
-        except Exception as error_message:
-            error("Error accessing ebike-connect.com!", str(error_message))
+            pass
+        except Exception:
+            exception("Error accessing ebike-connect.com!")
             return -3
         try:
             radelt_at = RadeltAt(
@@ -226,13 +224,13 @@ def run(config: ConfigParser) -> int:
                 config["radelt"]["username"],
                 config["radelt"]["password"]
             )
-            radelt_at.fetch_data(total_altitude=ebike_connect.altitude)
+            radelt_at.fetch_data(total_altitude=ebike_connect.total_altitude)
             radelt_at.submit_data(
                 total_distance=ebike_connect.total_distance,
                 submit=CONFIG.getboolean("radelt", "submit")
             )
-        except Exception as error_message:
-            error("Error accessing radelt.at!", str(error_message))
+        except Exception:
+            exception("Error accessing radelt.at!")
             return -4
     return 0
 
