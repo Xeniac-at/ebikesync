@@ -123,14 +123,12 @@ class RadeltAt(SeleniumPageWithLogin):
     submit_url: str = "https://burgenland.radelt.at/dashboard/rides/create/245325"
     login_url: str = "https://burgenland.radelt.at/dashboard/login"
     password_field_selector: str = "#password"
-    timeline_entries_selector: str = 'div.timeline__entry__col.timeline__entry__col--bike-text p'
-    personal_stats_selector: str = "div#pers_32341995 table:first-of-type tr"
+    personal_stats_selector: str = "div[id^=pers] table:first-of-type tr"
     total_altitude: int = 0
 
-    def fetch_data(self, total_altitude: int):
+    def fetch_data(self):
         """
         fetch the previous total distance and altitude calculate additional altitude.
-        :param total_altitude:  new total altitude for the ebike
         """
         debug(f"fetching data from {self.fetch_url}")
         altitude_pattern = re.compile(r"^Höhenmeter([0-9. ]+)m$", re.IGNORECASE)
@@ -149,16 +147,14 @@ class RadeltAt(SeleniumPageWithLogin):
                 self.total_distance = int(match_distance.group(1).replace(".", ""))
                 debug(f"Distance found {match_distance.string}: {self.total_distance}")
                 continue
-        self.additional_altitude = total_altitude - self.total_altitude
         info(f"[Radelt] Distance: {self.total_distance} km")
         info(f"[Radelt] Altitude {self.total_altitude} m")
-        info(f"[Radelt] Additional altitude {self.additional_altitude} m")
-        return self.additional_altitude
 
-    def submit_data(self, total_distance: int, submit: bool = True):
+    def submit_data(self, total_distance: int, total_altitude: int = 0, submit: bool = True):
         """
         Submit the total total_distance and the new additional total_altitude to radelt.at
         :param total_distance: total Distance
+        :param total_altitude:  new total altitude for the ebike
         :param submit: submit the Form?
         :return: 
         """
@@ -166,7 +162,9 @@ class RadeltAt(SeleniumPageWithLogin):
         self.driver.get(self.submit_url)
         distance_field = self._fill(self.distance_input_selector, str(total_distance))
 
-        if self.total_altitude:
+        if total_altitude:
+            self.additional_altitude = total_altitude - self.total_altitude
+            info(f"[Radelt] Additional altitude {self.additional_altitude} m")
             self._fill(self.description_input_selector, f"Gesamthöhe: {self.total_altitude} m")
             self._fill(self.altitude_input_selector, str(self.additional_altitude))
 
@@ -224,9 +222,10 @@ def run(config: ConfigParser) -> int:
                 config["radelt"]["username"],
                 config["radelt"]["password"]
             )
-            radelt_at.fetch_data(total_altitude=ebike_connect.total_altitude)
+            radelt_at.fetch_data()
             radelt_at.submit_data(
                 total_distance=ebike_connect.total_distance,
+                total_altitude=ebike_connect.total_altitude,
                 submit=CONFIG.getboolean("radelt", "submit")
             )
         except Exception:
