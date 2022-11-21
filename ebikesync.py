@@ -138,15 +138,13 @@ class RadeltAt(SeleniumPageWithLogin):
         # iterate over every timeline to find the highest total_altitude
         for element in self.driver.find_elements(By.CSS_SELECTOR, self.personal_stats_selector):
             match_altitude = altitude_pattern.match(element.text)
-            if match_altitude:
-                self.total_altitude = int(match_altitude.group(1).replace(".", ""))
-                debug(f"Altitude found {match_altitude.string}: {self.total_altitude}")
-                break
             match_distance = distance_pattern.match(element.text)
-            if match_distance:
-                self.total_distance = int(match_distance.group(1).replace(".", ""))
+            if match_altitude:
+                debug(f"Altitude found {match_altitude.string}: {self.total_altitude}")
+                self.total_altitude = max(int(match_altitude.group(1).replace(".", "")), self.total_altitude)
+            elif match_distance:
                 debug(f"Distance found {match_distance.string}: {self.total_distance}")
-                break
+                self.total_distance = max(int(match_distance.group(1).replace(".", "")), self.total_distance)
         info(f"[Radelt] Distance: {self.total_distance} km")
         info(f"[Radelt] Altitude {self.total_altitude} m")
 
