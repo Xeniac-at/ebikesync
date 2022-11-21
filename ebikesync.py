@@ -141,12 +141,12 @@ class RadeltAt(SeleniumPageWithLogin):
             if match_altitude:
                 self.total_altitude = int(match_altitude.group(1).replace(".", ""))
                 debug(f"Altitude found {match_altitude.string}: {self.total_altitude}")
-                continue
+                break
             match_distance = distance_pattern.match(element.text)
             if match_distance:
                 self.total_distance = int(match_distance.group(1).replace(".", ""))
                 debug(f"Distance found {match_distance.string}: {self.total_distance}")
-                continue
+                break
         info(f"[Radelt] Distance: {self.total_distance} km")
         info(f"[Radelt] Altitude {self.total_altitude} m")
 
