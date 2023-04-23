@@ -1,1 +1,5 @@
 /.idea/
+/config.ini
+/dist/
+/ebikesync.egg-info/
+/build/
