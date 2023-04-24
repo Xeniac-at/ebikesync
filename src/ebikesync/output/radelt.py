@@ -1,9 +1,10 @@
 import re
 from ebikesync.seleniumpage import SeleniumPageWithLogin, By
-from logging import debug, info, warning, error, exception
+from ebikesync import plugins
+import logging
 
 
-class RadeltAt(SeleniumPageWithLogin):
+class RadeltAt(plugins.OutputPlugin, SeleniumPageWithLogin):
     """
     radelt.at Portal to fill in the total total_distance and total_altitude from the Bosch E-Bike Site.
     """
@@ -18,6 +19,8 @@ class RadeltAt(SeleniumPageWithLogin):
     fetch_url: str = "https://burgenland.radelt.at/dashboard/statistics"
     submit_url: str = "https://burgenland.radelt.at/dashboard/rides/create/245325"
     login_url: str = "https://burgenland.radelt.at/dashboard/login"
+    cookie_button_selector: str = "button.cookie-consent__agree"
+    login_button_selector: str = "button#login-button"
     password_field_selector: str = "#password"
     personal_stats_selector: str = "div[id^=pers] table:first-of-type tr"
     total_altitude: int = 0
@@ -26,7 +29,7 @@ class RadeltAt(SeleniumPageWithLogin):
         """
         fetch the previous total distance and altitude calculate additional altitude.
         """
-        debug(f"fetching data from {self.fetch_url}")
+        logging.debug(f"fetching data from {self.fetch_url}")
         altitude_pattern = re.compile(r"^Höhenmeter([0-9. ]+)m$", re.IGNORECASE)
         distance_pattern = re.compile(r"^gefahrene Kilometer([0-9. ]+)km$", re.IGNORECASE)
 
@@ -36,35 +39,41 @@ class RadeltAt(SeleniumPageWithLogin):
             match_altitude = altitude_pattern.match(element.text)
             match_distance = distance_pattern.match(element.text)
             if match_altitude:
-                debug(f"Altitude found {match_altitude.string}: {self.total_altitude}")
+                logging.debug(f"Altitude found {match_altitude.string}: {self.total_altitude}")
                 self.total_altitude = max(int(match_altitude.group(1).replace(".", "")), self.total_altitude)
             elif match_distance:
-                debug(f"Distance found {match_distance.string}: {self.total_distance}")
+                logging.debug(f"Distance found {match_distance.string}: {self.total_distance}")
                 self.total_distance = max(int(match_distance.group(1).replace(".", "")), self.total_distance)
-        info(f"[Radelt] Distance: {self.total_distance} km")
-        info(f"[Radelt] Altitude {self.total_altitude} m")
+        logging.info(f"[Radelt] Distance: {self.total_distance} km")
+        logging.info(f"[Radelt] Altitude {self.total_altitude} m")
 
-    def submit_data(self, total_distance: int, total_altitude: int = 0, submit: bool = True):
+    def submit_data(self, input_plugin: plugins.InputPlugin):
         """
         Submit the total total_distance and the new additional total_altitude to radelt.at
-        :param total_distance: total Distance
-        :param total_altitude:  new total altitude for the ebike
-        :param submit: submit the Form?
+        :param input_plugin: Instance of an ebikesync input plugin
         :return:
         """
-        debug(f"submit data using {self.submit_url}")
+        logging.debug(f"submit data using {self.submit_url}")
+        total_altitude: int = input_plugin.total_altitude
+        total_distance: int = input_plugin.total_distance
+
         self.driver.get(self.submit_url)
+
         distance_field = self._fill(self.distance_input_selector, str(total_distance))
 
         if total_altitude:
             self.additional_altitude = total_altitude - self.total_altitude
-            info(f"[Radelt] Additional altitude {self.additional_altitude} m")
+            logging.info(f"[Radelt] Additional altitude {self.additional_altitude} m")
             self._fill(self.description_input_selector, f"Gesamthöhe: {self.total_altitude} m")
             self._fill(self.altitude_input_selector, str(self.additional_altitude))
 
         if total_distance <= self.total_distance:
-            warning("No changes in total_distance, won't submit the form...")
-        elif not submit:
-            warning("Submit ist set to False, won't submit the form...")
+            logging.warning("No changes in total_distance, won't submit the form...")
+        elif not self.submit:
+            logging.warning("Submit ist set to False, won't submit the form...")
         else:
             distance_field.submit()
+
+
+def register(plugin_name: str) -> None:
+    plugins.register_output(plugin_name, RadeltAt)

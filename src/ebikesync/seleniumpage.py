@@ -1,20 +1,25 @@
+import logging
+import time
+
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
-from logging import debug, info, warning, error, exception
 
 
 class SeleniumPageWithLogin:
     """ A simple class to access a webpage via Selenium that needs a login first."""
+    login_url: str
     cookie_button_selector: str
     email_field_selector: str
-    login_url: str
     password_field_selector: str
+    login_button_selector: str
     html_fetch_timeout: int = 5
+    submit: bool = True
 
-    def __init__(self, driver: WebDriver, username: str, password: str, html_fetch_timeout: int = 5) -> None:
+    def __init__(self, driver: WebDriver, username: str, password: str, html_fetch_timeout: int = 5,
+                 submit: bool = True, **kwargs) -> None:
         """
         sets the selenium driver and get the URL and completes the login form.
         :param driver: the selenium driver to use
@@ -25,6 +30,7 @@ class SeleniumPageWithLogin:
         self.driver = driver
         self.login(username, password)
         self.html_fetch_timeout = html_fetch_timeout
+        self.submit = submit
 
     def _fill(self, selector_string: str, value: str, selector_type: str = By.CSS_SELECTOR) -> WebElement:
         """
@@ -57,12 +63,20 @@ class SeleniumPageWithLogin:
         :param password: password to login
         :return: None
         """
-        debug(f"logging in on {self.login_url}")
+        logging.info(f"logging in on {self.login_url}")
+        logging.debug(f"Username: {username}")
+        logging.debug(f"Password: {password}")
+
         self.driver.get(self.login_url)
-        if hasattr(self, "cookie_button_selector"):
+        if getattr(self, "cookie_button_selector", None):
             consent_button = self._wait_for(self.cookie_button_selector)
             consent_button.click()
 
-        self._fill(self.email_field_selector, username)
+        username_filed = self._fill(self.email_field_selector, username)
         password_field = self._fill(self.password_field_selector, password)
-        password_field.submit()
+        time.sleep(5)
+        if getattr(self, "login_button_selector", None):
+            login_button = self._wait_for(self.login_button_selector)
+            login_button.click()
+        else:
+            password_field.submit()
