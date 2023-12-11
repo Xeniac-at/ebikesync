@@ -10,6 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 class SeleniumPageWithLogin:
     """ A simple class to access a webpage via Selenium that needs a login first."""
+    cookies: list = []
     login_url: str
     cookie_button_selector: str
     email_field_selector: str
@@ -28,9 +29,9 @@ class SeleniumPageWithLogin:
         :param html_fetch_timeout: seconds to wait for an element to appear
         """
         self.driver = driver
-        self.login(username, password)
         self.html_fetch_timeout = html_fetch_timeout
         self.submit = submit
+        self.login(username, password)
 
     def _fill(self, selector_string: str, value: str, selector_type: str = By.CSS_SELECTOR) -> WebElement:
         """
@@ -67,12 +68,17 @@ class SeleniumPageWithLogin:
         logging.debug(f"Username: {username}")
         logging.debug(f"Password: {password}")
 
+        if self.cookies:
+            self.driver.get(self.login_url)
+            [self.driver.add_cookie(cookie) for cookie in self.cookies]
+
         self.driver.get(self.login_url)
         if getattr(self, "cookie_button_selector", None):
+            logging.debug(f"Accepting Cookies")
             consent_button = self._wait_for(self.cookie_button_selector)
             consent_button.click()
 
-        username_filed = self._fill(self.email_field_selector, username)
+        username_field = self._fill(self.email_field_selector, username)
         password_field = self._fill(self.password_field_selector, password)
         time.sleep(5)
         if getattr(self, "login_button_selector", None):

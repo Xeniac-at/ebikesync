@@ -5,11 +5,10 @@ from selenium import webdriver
 from xdg import xdg_config_home
 from time import sleep
 
-from ebikesync import plugins
+from . import plugins
 
 try:
     from xvfbwrapper import Xvfb
-
     XVFBWRAPPER_INSTALLED = True
 except ModuleNotFoundError:
     XVFBWRAPPER_INSTALLED = False

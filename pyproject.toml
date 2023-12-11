@@ -1,0 +1,36 @@
+[project]
+name = "ebikesync"
+version = "0.3.231209"
+description = "A seleniumbot to sync your ebike stats with other services."
+license = { file = "LICENSE" }
+authors = [
+    {name = "Christian Berg", email = "xeniac.github@xendynastie.at"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3 :: Only",
+    "Environment :: Console",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Intended Audience :: End Users/Desktop",
+]
+dependencies = [
+    "selenium~=4.5",
+    "xdg~=5.0",
+    "xvfbwrapper; sys_platform=='linux'"
+]
+readme = "README.md"
+requires-python = ">=3.7, <4"
+
+[project.scripts]
+ebikeysnc = "ebikesync:run"
+
+[project.urls]
+Repository = "https://github.com/Xeniac-at/ebikesync"
+
+[build-system]
+requires = ["setuptools >= 61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

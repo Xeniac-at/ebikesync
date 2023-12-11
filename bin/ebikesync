@@ -1,3 +1,5 @@
 #!/usb/bin/python3
 import ebikesync
+
 ebikesync.run()
+input("Bitte eine Taste drücken...")
