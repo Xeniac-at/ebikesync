@@ -23,7 +23,7 @@ readme = "README.md"
 requires-python = ">=3.7, <4"
 
 [project.scripts]
-ebikeysnc = "ebikesync:run"
+ebikesync = "ebikesync:run"
 
 [project.urls]
 Repository = "https://github.com/Xeniac-at/ebikesync"
