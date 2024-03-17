@@ -12,15 +12,15 @@ Meanwhile I have to use selenium instead, since Bosch's ebike-connect.com makes 
 ## Requirements
 * python 3
 * python modules selenium and xdg
-* a Browser supperted by Selenium: Firefox, Chrome, Chromium, Edge, Safari
-* the Seleniumdriver for your chosen Browser, it must be in your $PATH
+* a Browser supported by Selenium: Firefox, Chrome, Chromium, Edge, Safari
+* the Selenium driver for your chosen Browser, it must be in your $PATH
 * XVFB and python xvfbwrapper module if you like to run the script form Linux Commandline.  
-  there is a selenium remotedriver, but I haven't tested it.
+  there is a selenium remote driver, but I haven't tested it.
 
 
 ## Installation
 * Install the right selenium webdriver for your Browser.
 * *Linux:* Copy config.ini to $HOME/.config/ebikesync/
-* *Windows* Copy config.ini to %HOMEPAT%\.config\ebikesync\
+* *Windows* Copy config.ini to %HOMEPATH%/.config/ebikesync/
 * edit config.ini
 * run ebikesync.py

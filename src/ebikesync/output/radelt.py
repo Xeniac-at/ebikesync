@@ -19,7 +19,7 @@ class RadeltAt(plugins.OutputPlugin, SeleniumPageWithLogin):
     fetch_url: str = "https://burgenland.radelt.at/dashboard/statistics"
     submit_url: str = "https://burgenland.radelt.at/dashboard/rides/create/245325"
     login_url: str = "https://burgenland.radelt.at/dashboard/login"
-    cookie_button_selector: str = "button.cookie-consent__agree"
+    cookie_button_selector: str = "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection"
     login_button_selector: str = "button#login-button"
     password_field_selector: str = "#password"
     personal_stats_selector: str = "div[id^=pers] table:first-of-type tr"
